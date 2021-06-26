@@ -173,6 +173,8 @@ class FMoE(nn.Module):
         base_idx = 0
         for i in range(self.num_expert):
             batch_size = fwd_expert_count[i].item()
+            if batch_size == 0:
+                continue
             inp_slice = inp[base_idx : base_idx + batch_size]
             outputs.append(self.experts[i](inp_slice))
             base_idx += batch_size
