@@ -42,14 +42,22 @@ def count_by_gate(gate, num_expert, world_size, require_pos=True):
         else:
             lec_cum = torch.cumsum(local_expert_count, dim=0).int()
             pos_size = lec_cum[-1].item()
-            pos = torch.empty((pos_size,), device=gate.device, dtype=torch.long)
-            #fmoe_cuda.assign_pos_(lec_cum, gate, pos)
+            pos1 = torch.empty((pos_size,), device=gate.device, dtype=torch.long)
+            pos2 = torch.empty((pos_size,), device=gate.device, dtype=torch.long)
+            fmoe_cuda.assign_pos_(lec_cum, gate, pos1)
             for i in range(eff_gate.shape[0]):
                 gate_idx = eff_gate[i]
-                pos[lec_cum[gate_idx] - 1] = i
+                pos2[lec_cum[gate_idx] - 1] = i
                 lec_cum[gate_idx] -= 1
 
-    return pos, local_expert_count, global_expert_count
+            # compare pos1 and pos2
+            for i in range(pos_size):
+                if (pos1[i] != pos2[i]):
+                    print(pos1)
+                    print(pos2)
+                    raise Exception("pos1 and pos2 not equal")
+
+    return pos1, local_expert_count, global_expert_count
 
 '''
 def count_by_gate(gate, num_expert, world_size, require_pos=True):
