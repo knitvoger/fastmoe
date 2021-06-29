@@ -8,7 +8,7 @@ import torch
 from torch.autograd import Function
 import fmoe_cuda
 from .utils import get_torch_default_comm
-
+import numpy as np
 
 def _ensure_nccl(t, comm=None):
     if comm is None:
@@ -44,12 +44,16 @@ def count_by_gate(gate, num_expert, world_size, require_pos=True):
             pos_size = lec_cum[-1].item()
             pos1 = torch.empty((pos_size,), device=gate.device, dtype=torch.long)
             pos2 = torch.empty((pos_size,), device=gate.device, dtype=torch.long)
-            fmoe_cuda.assign_pos_(lec_cum, gate, pos1)
+            lec_cum1 = lec_cum.clone()
+            fmoe_cuda.assign_pos_(lec_cum1, gate, pos1)
             for i in range(eff_gate.shape[0]):
                 gate_idx = eff_gate[i]
                 pos2[lec_cum[gate_idx] - 1] = i
                 lec_cum[gate_idx] -= 1
 
+            #np.savetxt("pos1.txt", pos1.cpu().detach(), fmt="%d")
+            #np.savetxt("pos2.txt", pos2.cpu().detach(), fmt="%d")
+            #np.savetxt("local_expert_count.txt", local_expert_count.cpu().detach(), fmt="%d")
             # compare pos1 and pos2
             for i in range(pos_size):
                 if (pos1[i] != pos2[i]):

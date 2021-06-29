@@ -16,5 +16,5 @@ void _assign_pos(
             cum_count.data_ptr<int>(),
             gate.data_ptr<long>(),
             pos.data_ptr<long>(),
-            batch_size, topk, smgr);
+            batch_size, topk, smgr); 
 }
