@@ -48,6 +48,14 @@ def count_by_gate(gate, num_expert, world_size, require_pos=True):
             fmoe_cuda.assign_pos_(lec_cum1, gate, pos1)
             for i in range(eff_gate.shape[0]):
                 gate_idx = eff_gate[i]
+                if gate_idx < 0 or gate_idx > 31:
+                    print(gate_idx)
+                    raise Exception("invalid gate_idx")
+                
+                if lec_cum[gate_idx] - 1 < 0:
+                    print(lec_cum[gate_idx])
+                    raise Exception("invalid lec_cum[gate_idx]")
+                
                 pos2[lec_cum[gate_idx] - 1] = i
                 lec_cum[gate_idx] -= 1
 
