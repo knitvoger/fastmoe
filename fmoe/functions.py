@@ -46,7 +46,8 @@ def count_by_gate(gate, num_expert, world_size, require_pos=True):
             pos2 = torch.empty((pos_size,), device=gate.device, dtype=torch.long)
             lec_cum1 = lec_cum.clone()
             fmoe_cuda.assign_pos_(lec_cum1, gate, pos)
-            '''for i in range(eff_gate.shape[0]):
+            print("start native")
+            for i in range(eff_gate.shape[0]):
                 gate_idx = eff_gate[i]
                 if gate_idx < 0 or gate_idx > 31:
                     print(gate_idx)
@@ -58,17 +59,20 @@ def count_by_gate(gate, num_expert, world_size, require_pos=True):
                 
                 pos2[lec_cum[gate_idx] - 1] = i
                 lec_cum[gate_idx] -= 1
+            print("end native")
 
             #np.savetxt("pos1.txt", pos1.cpu().detach(), fmt="%d")
             #np.savetxt("pos2.txt", pos2.cpu().detach(), fmt="%d")
             #np.savetxt("local_expert_count.txt", local_expert_count.cpu().detach(), fmt="%d")
             # compare pos1 and pos2
+            print("start compare")
             for i in range(pos_size):
                 if (pos[i] != pos2[i]):
                     print(pos)
                     print(pos2)
                     raise Exception("pos1 and pos2 not equal")
-            '''
+            print("end compare")
+            
 
     return pos, local_expert_count, global_expert_count
 
