@@ -29,6 +29,42 @@ def count_by_gate(gate, num_expert, world_size, require_pos=True):
         local_expert_count.index_add_(0, eff_gate, ones)
 
         if world_size > 1:
+            print("world_size > 1 not supported!")
+            exit(0)
+            #_ensure_nccl(gate)
+            #(global_expert_count,) = fmoe_cuda.expert_exchange(
+            #    local_expert_count, num_expert, world_size
+            #)
+        else:
+            global_expert_count = local_expert_count
+        if not require_pos:
+            pos = None
+        else:
+            lec_cum = torch.cumsum(local_expert_count, dim=0).int()
+            pos_size = lec_cum[-1].item()
+            pos = torch.empty((pos_size,), device=gate.device, dtype=torch.long)
+            #fmoe_cuda.assign_pos_(lec_cum, gate, pos)
+            for i in range(eff_gate.shape[0]):
+                gate_idx = eff_gate[i]
+                pos[lec_cum[gate_idx] - 1] = i
+                lec_cum[gate_idx] -= 1
+
+    return pos, local_expert_count, global_expert_count
+
+'''
+def count_by_gate(gate, num_expert, world_size, require_pos=True):
+    with torch.no_grad():
+        flatten_gate = gate.view(-1)
+        eff_gate = flatten_gate[flatten_gate != -1]
+
+        local_expert_count = torch.zeros(
+            num_expert * world_size, device=gate.device, dtype=torch.long
+        )
+        ones = torch.ones(eff_gate.numel(),
+                device=gate.device, dtype=torch.long)
+        local_expert_count.index_add_(0, eff_gate, ones)
+
+        if world_size > 1:
             _ensure_nccl(gate)
             (global_expert_count,) = fmoe_cuda.expert_exchange(
                 local_expert_count, num_expert, world_size
@@ -43,7 +79,7 @@ def count_by_gate(gate, num_expert, world_size, require_pos=True):
             pos = torch.empty((pos_size,), device=gate.device, dtype=torch.long)
             fmoe_cuda.assign_pos_(lec_cum, gate, pos)
     return pos, local_expert_count, global_expert_count
-
+'''
 
 def prepare_forward(gate, num_expert, world_size, comm=None):
     r"""
