@@ -56,6 +56,7 @@ class _ConvExpert(nn.Module):
         for i in range(self.num_expert):
             if (fwd_expert_count[i] > 0):
                 inp_slice = inp[:, idx : idx + fwd_expert_count[i]]
+                inp_slice = inp_slice.view(1, self.d_model, -1)
                 outputs.append(self.htoh4.experts[i](inp_slice))
                 idx += fwd_expert_count[i]
         x = torch.cat(outputs, dim=2)
@@ -67,7 +68,6 @@ class _ConvExpert(nn.Module):
         for i in range(self.num_expert):
             if (fwd_expert_count[i] > 0):
                 inp_slice = inp[:, :, idx : idx + fwd_expert_count[i]]
-                inp_slice = inp_slice.view(1, self.d_hidden, -1)
                 outputs.append(self.h4toh.experts[i](inp_slice))
                 idx += fwd_expert_count[i]
         x = torch.cat(outputs, dim=2)
