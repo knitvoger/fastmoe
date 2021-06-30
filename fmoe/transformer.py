@@ -42,6 +42,8 @@ class _ConvExpert(nn.Module):
         self.h4toh = FMoEConv(num_expert, d_hidden, d_model, bias=True, kernel_size=kernel_size, dilation=dilation, rank=rank)
         self.activation = activation
         self.num_expert = num_expert
+        self.d_model = d_model
+        self.d_hidden = d_hidden
 
     def forward(self, inp, fwd_expert_count):
         r"""
@@ -49,25 +51,29 @@ class _ConvExpert(nn.Module):
         for convenience). Then perform activation. Finally shirink back to h.
         """
         outputs = []
+        inp = inp.transpose(1, 0)
         idx = 0
         for i in range(self.num_expert):
             if (fwd_expert_count[i] > 0):
-                inp_slice = inp[idx : idx + fwd_expert_count[i]]
+                inp_slice = inp[:, idx : idx + fwd_expert_count[i]]
                 outputs.append(self.htoh4.experts[i](inp_slice))
                 idx += fwd_expert_count[i]
-        x = torch.cat(outputs, dim=0)
+        x = torch.cat(outputs, dim=2)
 
-        self.activation(x)
+        inp = self.activation(x)
 
         outputs = []
         idx = 0
         for i in range(self.num_expert):
             if (fwd_expert_count[i] > 0):
-                inp_slice = inp[idx : idx + fwd_expert_count[i]]
+                inp_slice = inp[:, :, idx : idx + fwd_expert_count[i]]
+                inp_slice = inp_slice.view(1, self.d_hidden, -1)
                 outputs.append(self.h4toh.experts[i](inp_slice))
                 idx += fwd_expert_count[i]
-        x = torch.cat(outputs, dim=0)
+        x = torch.cat(outputs, dim=2)
 
+        x = x.view(self.d_model, -1)
+        x = x.transpose(1, 0)
         return x
 
 

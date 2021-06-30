@@ -77,6 +77,7 @@ class FMoEConv(nn.Module):
         self.num_expert = num_expert
         self.in_feat = in_feat
         self.out_feat = out_feat
+        self.bias = bias
         self.rank = rank
         padding = (kernel_size + (kernel_size - 1) * (dilation - 1) - 1) // 2
         self.experts = nn.ModuleList([nn.Conv1d(in_channels=self.in_feat, out_channels=self.out_feat, kernel_size=kernel_size, padding=padding,
