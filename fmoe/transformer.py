@@ -4,10 +4,10 @@ Adaption to act as the MLP layer using an MoE MLP layer in transformer.
 import torch
 import torch.nn as nn
 from .gates import NaiveGate
-from .layers import FMoE, FMoELinear
+from .layers import FMoE, FMoELinear, FMoEConv
 
 
-class _Expert(nn.Module):
+class _LinearExpert(nn.Module):
     r"""
     An expert using 2 FMoELinear modules to speed up the computation of experts
     within one worker.
@@ -27,6 +27,47 @@ class _Expert(nn.Module):
         x = self.htoh4(inp, fwd_expert_count)
         x = self.activation(x)
         x = self.h4toh(x, fwd_expert_count)
+        return x
+
+
+class _ConvExpert(nn.Module):
+    r"""
+    An expert using 2 FMoELinear modules to speed up the computation of experts
+    within one worker.
+    """
+
+    def __init__(self, num_expert, d_model, d_hidden, kernel_size, dilation, activation, rank=0):
+        super().__init__()
+        self.htoh4 = FMoEConv(num_expert, d_model, d_hidden, bias=True, kernel_size=kernel_size, dilation=dilation, rank=rank)
+        self.h4toh = FMoEConv(num_expert, d_hidden, d_model, bias=True, kernel_size=kernel_size, dilation=dilation, rank=rank)
+        self.activation = activation
+        self.num_expert = num_expert
+
+    def forward(self, inp, fwd_expert_count):
+        r"""
+        First expand input to 4h (the hidden size is variable, but is called h4
+        for convenience). Then perform activation. Finally shirink back to h.
+        """
+        outputs = []
+        idx = 0
+        for i in range(self.num_expert):
+            if (fwd_expert_count[i] > 0):
+                inp_slice = inp[idx : idx + fwd_expert_count[i]]
+                outputs.append(self.htoh4.experts[i](inp_slice))
+                idx += fwd_expert_count[i]
+        x = torch.cat(outputs, dim=0)
+
+        self.activation(x)
+
+        outputs = []
+        idx = 0
+        for i in range(self.num_expert):
+            if (fwd_expert_count[i] > 0):
+                inp_slice = inp[idx : idx + fwd_expert_count[i]]
+                outputs.append(self.h4toh.experts[i](inp_slice))
+                idx += fwd_expert_count[i]
+        x = torch.cat(outputs, dim=0)
+
         return x
 
 
@@ -51,6 +92,9 @@ class FMoETransformerMLP(FMoE):
         gate_hook=None,
         mask=None,
         mask_dict=None,
+        expert=_LinearExpert,
+        kernel_size=1,
+        dilation=1
     ):
         super().__init__(
             num_expert=num_expert,
@@ -63,9 +107,13 @@ class FMoETransformerMLP(FMoE):
             mask=mask,
             mask_dict=mask_dict
         )
-        self.experts = _Expert(
-            num_expert, d_model, d_hidden, activation, rank=self.mp_rank
-        )
+
+        if expert == _LinearExpert:
+            self.experts = expert(
+                num_expert, d_model, d_hidden, activation, rank=self.mp_rank)
+        elif expert == _ConvExpert:
+                self.experts = expert(
+                num_expert, d_model, d_hidden, kernel_size, dilation, activation, rank=self.mp_rank)
         self.mark_parallel_comm(expert_dp_comm)
 
     def forward(self, inp: torch.Tensor):

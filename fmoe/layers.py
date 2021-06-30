@@ -55,6 +55,50 @@ class FMoELinear(nn.Module):
         )
 
 
+class FMoEConv(nn.Module):
+    r"""
+    A conv layer that contains multiple experts.
+    As multiple experts can be placed on the same worker, the computation can be
+    performed in parallel to increase the performance.
+    The FMoELinear module provides such function.
+    """
+
+    def __init__(
+        self,
+        num_expert: int,
+        in_feat: int,
+        out_feat: int,
+        bias: bool = True,
+        kernel_size = 1,
+        dilation = 1,
+        rank: int = 0,
+    ):
+        super().__init__()
+        self.num_expert = num_expert
+        self.in_feat = in_feat
+        self.out_feat = out_feat
+        self.rank = rank
+        padding = (kernel_size + (kernel_size - 1) * (dilation - 1) - 1) // 2
+        self.experts = nn.ModuleList([nn.Conv1d(in_channels=self.in_feat, out_channels=self.out_feat, kernel_size=kernel_size, padding=padding,
+                dilation=dilation, bias=bias) for _ in range(num_expert)])
+
+    def forward(self, inp, fwd_expert_count):
+        r"""
+        Call MOE function
+        """
+        raise Exception("not implemented!!!")
+
+    def extra_repr(self) -> str:
+        return "num_expert={}, in_features={}, \
+        out_features={}, bias={}, rank={}".format(
+            self.num_expert,
+            self.in_feat,
+            self.out_feat,
+            self.bias is not None,
+            self.rank,
+        )
+
+
 def mark_module_parallel_comm(module, comm):
     r"""
     Mark all parameters in `module` as doing data parallel in `comm`, where
