@@ -110,7 +110,7 @@ class FMoEConv(nn.Module):
                 idx += fwd_expert_count[i]
                 outputs.append(output)
         x = torch.cat(outputs, dim=2)
-        return x
+        return x.reshape((self.out_feat, -1)).transpose(1, 0)
 
 
     def extra_repr(self) -> str:
