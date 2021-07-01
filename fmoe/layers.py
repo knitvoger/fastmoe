@@ -102,10 +102,11 @@ class FMoEConv(nn.Module):
         for i in range(self.num_expert):
             if (fwd_expert_count[i] > 0):
                 inp_slice = inp[:, idx : idx + fwd_expert_count[i]]
-                inp_slice = inp_slice.view(1, self.d_model, -1)
+                inp_slice = inp_slice.view(1, self.in_feat, -1)
                 #outputs.append(self.htoh4.experts[i](inp_slice))
-                expert_weight = torch.squeeze(self.weight[i], 0)
-                output = F.conv1d(inp_slice, expert_weight, self.bias, 1, self.padding, self.dilation, 1)
+                expert_weight = self.weight[i]
+                expert_bias = self.bias[i]
+                output = F.conv1d(inp_slice, expert_weight, expert_bias, 1, self.padding, self.dilation, 1)
                 idx += fwd_expert_count[i]
                 outputs.append(output)
         x = torch.cat(outputs, dim=2)
@@ -113,12 +114,13 @@ class FMoEConv(nn.Module):
 
 
     def extra_repr(self) -> str:
-        return "num_expert={}, in_features={}, \
-        out_features={}, bias={}, rank={}".format(
+        return "num_expert={}, in_features={}, out_features={}, bias={}, kernel_size={}, dilation={}, rank={}".format(
             self.num_expert,
             self.in_feat,
             self.out_feat,
             self.bias is not None,
+            self.kernel_size,
+            self.dilation,
             self.rank,
         )
 
