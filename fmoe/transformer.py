@@ -50,30 +50,9 @@ class _ConvExpert(nn.Module):
         First expand input to 4h (the hidden size is variable, but is called h4
         for convenience). Then perform activation. Finally shirink back to h.
         """
-        outputs = []
-        inp = inp.transpose(1, 0)
-        idx = 0
-        for i in range(self.num_expert):
-            if (fwd_expert_count[i] > 0):
-                inp_slice = inp[:, idx : idx + fwd_expert_count[i]]
-                inp_slice = inp_slice.view(1, self.d_model, -1)
-                outputs.append(self.htoh4.experts[i](inp_slice))
-                idx += fwd_expert_count[i]
-        x = torch.cat(outputs, dim=2)
-
-        inp = self.activation(x)
-
-        outputs = []
-        idx = 0
-        for i in range(self.num_expert):
-            if (fwd_expert_count[i] > 0):
-                inp_slice = inp[:, :, idx : idx + fwd_expert_count[i]]
-                outputs.append(self.h4toh.experts[i](inp_slice))
-                idx += fwd_expert_count[i]
-        x = torch.cat(outputs, dim=2)
-
-        x = x.view(self.d_model, -1)
-        x = x.transpose(1, 0)
+        x = self.htoh4(inp, fwd_expert_count)
+        x = self.activation(x)
+        x = self.h4toh(x, fwd_expert_count)
         return x
 
 

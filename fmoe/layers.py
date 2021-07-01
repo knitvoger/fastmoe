@@ -3,6 +3,7 @@ Layers that FMoE provides to users
 """
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from .functions import prepare_forward
 from .functions import MOEScatter, MOEGather, MOELinear
@@ -79,15 +80,37 @@ class FMoEConv(nn.Module):
         self.out_feat = out_feat
         self.bias = bias
         self.rank = rank
-        padding = (kernel_size + (kernel_size - 1) * (dilation - 1) - 1) // 2
-        self.experts = nn.ModuleList([nn.Conv1d(in_channels=self.in_feat, out_channels=self.out_feat, kernel_size=kernel_size, padding=padding,
-                dilation=dilation, bias=bias) for _ in range(num_expert)])
+        self.kernel_size = kernel_size
+        self.dilation = dilation
+        self.padding = (kernel_size + (kernel_size - 1) * (dilation - 1) - 1) // 2
+        #self.experts = nn.ModuleList([nn.Conv1d(in_channels=self.in_feat, out_channels=self.out_feat, kernel_size=kernel_size, padding=padding,
+        #        dilation=dilation, bias=bias) for _ in range(num_expert)])
+
+        self.weight = nn.Parameter(torch.Tensor(num_expert, out_feat, in_feat, self.kernel_size))
+        if bias:
+            self.bias = nn.Parameter(torch.Tensor(num_expert, out_feat))
+        else:
+            self.register_parameter("bias", None)
 
     def forward(self, inp, fwd_expert_count):
         r"""
         Call MOE function
         """
-        raise Exception("not implemented!!!")
+        outputs = []
+        inp = inp.transpose(1, 0)
+        idx = 0
+        for i in range(self.num_expert):
+            if (fwd_expert_count[i] > 0):
+                inp_slice = inp[:, idx : idx + fwd_expert_count[i]]
+                inp_slice = inp_slice.view(1, self.d_model, -1)
+                #outputs.append(self.htoh4.experts[i](inp_slice))
+                expert_weight = torch.squeeze(self.weight[i], 0)
+                output = F.conv1d(inp_slice, expert_weight, self.bias, 1, self.padding, self.dilation, 1)
+                idx += fwd_expert_count[i]
+                outputs.append(output)
+        x = torch.cat(outputs, dim=2)
+        return x
+
 
     def extra_repr(self) -> str:
         return "num_expert={}, in_features={}, \
