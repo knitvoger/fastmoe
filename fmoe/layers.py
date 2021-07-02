@@ -265,7 +265,7 @@ class FMoE(nn.Module):
                 mark_module_parallel_comm(self.experts, comm)
         mark_module_parallel_comm(self.gate, "world")
 
-    def forward(self, inp):
+    def forward(self, inp, gating_feature=None):
         r"""
         The FMoE module first computes gate output, and then conduct MoE forward
         according to the gate.  The score of the selected gate given by the
@@ -274,7 +274,10 @@ class FMoE(nn.Module):
         if self.mp_size > 1:
             inp = Slice.apply(inp, self.mp_rank, self.mp_size, self.mp_group)
 
-        gate_top_k_idx, gate_score = self.gate(inp)
+        if gating_feature == None:
+            gate_top_k_idx, gate_score = self.gate(inp)
+        else:
+            gate_top_k_idx, gate_score = self.gate(gating_feature)
 
         # delete masked tensors
         if self.mask is not None and self.mask_dict is not None:
