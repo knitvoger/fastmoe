@@ -108,5 +108,7 @@ class FMoETransformerMLP(FMoE):
         """
         original_shape = inp.shape
         inp = inp.reshape(-1, self.d_model)
+        if gating_features != None:
+            gating_features = gating_features.reshape(-1, self.d_model)
         output = super().forward(inp, gating_features)
         return output.reshape(original_shape)
