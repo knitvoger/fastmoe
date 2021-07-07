@@ -112,3 +112,42 @@ class FMoETransformerMLP(FMoE):
             gating_features = gating_features.reshape(-1, self.d_model)
         output = super().forward(inp, gating_features)
         return output.reshape(original_shape)
+
+    def forward_(self, inp: torch.Tensor, gating_features=None):
+        original_shape = inp.shape
+        inp = inp.reshape(-1, self.d_model)
+        if gating_features != None:
+            gating_features = gating_features.reshape(-1, self.d_model)
+        
+        if gating_features == None:
+            gate_top_k_idx, gate_score = self.gate(inp)
+        else:
+            gate_top_k_idx, gate_score = self.gate(gating_features)
+
+        #gate_top_k_idx = gate_top_k_idx.view(-1)
+        #print(gate_top_k_idx)
+
+        x = []
+        for i in range(inp.shape[0]):
+            for k in range(self.top_k):
+                gate_idx = gate_top_k_idx[i][k]
+
+                weight = self.experts.htoh4.weight[gate_idx]
+                bias = self.experts.htoh4.bias[gate_idx]
+                output = F.conv1d(inp[i].reshape((1, -1, 1)), weight, bias, 1, self.experts.htoh4.padding, self.experts.htoh4.dilation, 1)
+
+                output = self.experts.activation(output)
+
+                weight = self.experts.h4toh.weight[gate_idx]
+                bias = self.experts.h4toh.bias[gate_idx]
+                output = F.conv1d(output, weight, bias, 1, self.experts.h4toh.padding, self.experts.h4toh.dilation, 1)
+
+                x.append(output)
+
+        x = torch.cat(x, dim=0)
+        x = x.view(-1, self.top_k, self.d_model)
+
+        gate_score = gate_score.view(x.shape[0], 1, self.top_k)
+        x = torch.bmm(gate_score, x).reshape(-1, self.d_model)
+
+        return x.reshape(original_shape)
