@@ -77,7 +77,7 @@ class FMoETransformerMLP(FMoE):
         gate_hook=None,
         mask=None,
         mask_dict=None,
-        expert=_LinearExpert,
+        expert=_ConvExpert,
         kernel_size=1,
         dilation=1
     ):

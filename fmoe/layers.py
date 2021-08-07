@@ -9,7 +9,7 @@ from .functions import prepare_forward
 from .functions import MOEScatter, MOEGather, MOELinear
 from .functions import AllGather, Slice
 from .gates import NaiveGate
-
+import time
 
 class FMoELinear(nn.Module):
     r"""
@@ -156,21 +156,32 @@ def _fmoe_general_global_forward(inp, gate, expert_fn, num_expert, world_size):
     topk = 1
     if len(gate.shape) == 2:
         topk = gate.shape[1]
+
+    Ts = time.perf_counter()
     x = MOEScatter.apply(
         inp, pos // topk,
         local_expert_count, global_expert_count, fwd_batch_size, world_size
     )
+    Te = time.perf_counter()
+    print('MOEScatter.apply cost %s ms' % ((Te - Ts)*1000))
+
+    Ts = time.perf_counter()
     x = expert_fn(x, fwd_expert_count)
+    Te = time.perf_counter()
+    print('expert_fn cost %s ms' % ((Te - Ts)*1000))
 
     out_batch_size = inp.shape[0]
     if len(gate.shape) == 2:
         out_batch_size *= gate.shape[1]
 
+    Ts = time.perf_counter()
     x = MOEGather.apply(
         x, pos,
         local_expert_count, global_expert_count,
         out_batch_size, world_size
     )
+    Te = time.perf_counter()
+    print('MOEGather.apply cost %s ms' % ((Te - Ts)*1000))
     return x
 
 
