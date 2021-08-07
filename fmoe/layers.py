@@ -106,6 +106,8 @@ class FMoEConv(nn.Module):
                 #outputs.append(self.htoh4.experts[i](inp_slice))
                 expert_weight = self.weight[i]
                 expert_bias = self.bias[i]
+                print("conv1 input")
+                print(inp_slice.shape)
                 output = F.conv1d(inp_slice, expert_weight, expert_bias, 1, self.padding, self.dilation, 1)
                 idx += fwd_expert_count[i]
                 outputs.append(output)
@@ -282,6 +284,8 @@ class FMoE(nn.Module):
         according to the gate.  The score of the selected gate given by the
         expert is multiplied to the experts' output tensors as a weight.
         """
+        print("inp shape")
+        print(inp.shape)
         if self.mp_size > 1:
             inp = Slice.apply(inp, self.mp_rank, self.mp_size, self.mp_group)
 
