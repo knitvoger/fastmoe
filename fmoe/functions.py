@@ -42,11 +42,11 @@ def count_by_gate(gate, num_expert, world_size, require_pos=True):
             pos_size = lec_cum[-1].item()
             pos = torch.empty((pos_size,), device=gate.device, dtype=torch.long)
             Ts = time.perf_counter()
-            fmoe_cuda.assign_pos_(lec_cum, gate, pos)
-            #for i in range(eff_gate.shape[0]):
-            #    gate_idx = eff_gate[i]
-            #    pos[lec_cum[gate_idx] - 1] = i
-            #    lec_cum[gate_idx] -= 1
+            #fmoe_cuda.assign_pos_(lec_cum, gate, pos)
+            for i in range(eff_gate.shape[0]):
+                gate_idx = eff_gate[i]
+                pos[lec_cum[gate_idx] - 1] = i
+                lec_cum[gate_idx] -= 1
             Te = time.perf_counter()
             print('assign_pos_ cost %s ms' % ((Te - Ts)*1000))
 
