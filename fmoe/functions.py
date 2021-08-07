@@ -41,11 +41,14 @@ def count_by_gate(gate, num_expert, world_size, require_pos=True):
             lec_cum = torch.cumsum(local_expert_count, dim=0).int()
             pos_size = lec_cum[-1].item()
             pos = torch.empty((pos_size,), device=gate.device, dtype=torch.long)
+            Ts = time.perf_counter()
             fmoe_cuda.assign_pos_(lec_cum, gate, pos)
             #for i in range(eff_gate.shape[0]):
             #    gate_idx = eff_gate[i]
             #    pos[lec_cum[gate_idx] - 1] = i
             #    lec_cum[gate_idx] -= 1
+            Te = time.perf_counter()
+            print('assign_pos_ cost %s ms' % ((Te - Ts)*1000))
 
     return pos, local_expert_count, global_expert_count
 
@@ -80,7 +83,12 @@ def prepare_forward(gate, num_expert, world_size, comm=None):
 
 
 def _local_scatter(inp, pos):
+    Ts = time.perf_counter()
+    print("index_select shape")
+    print(pos.shape)
     inp_buf = torch.index_select(inp, 0, pos)
+    Te = time.perf_counter()
+    print('index_select cost %s ms' % ((Te - Ts)*1000))
     return inp_buf
 
 
@@ -90,12 +98,8 @@ def _local_gather(inp, pos, out_batch_size, maybe_overlap=True):
     if maybe_overlap:
         inp_buf.index_add_(0, pos, inp)
     else:
-        Ts = time.perf_counter()
-        print("index_copy shape")
-        print(inp_buf.shape)
         inp_buf.index_copy_(0, pos, inp)
-        Te = time.perf_counter()
-        print('index_copy_ cost %s ms' % ((Te - Ts)*1000))
+        
     return inp_buf
 
 
