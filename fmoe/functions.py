@@ -8,7 +8,7 @@ import torch
 from torch.autograd import Function
 import fmoe_cuda
 from .utils import get_torch_default_comm
-
+import time
 
 def _ensure_nccl(t, comm=None):
     if comm is None:
@@ -90,7 +90,12 @@ def _local_gather(inp, pos, out_batch_size, maybe_overlap=True):
     if maybe_overlap:
         inp_buf.index_add_(0, pos, inp)
     else:
+        Ts = time.perf_counter()
+        print("index_copy shape")
+        print(inp_buf.shape)
         inp_buf.index_copy_(0, pos, inp)
+        Te = time.perf_counter()
+        print('index_copy_ cost %s ms' % ((Te - Ts)*1000))
     return inp_buf
 
 

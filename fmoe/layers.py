@@ -106,8 +106,8 @@ class FMoEConv(nn.Module):
                 #outputs.append(self.htoh4.experts[i](inp_slice))
                 expert_weight = self.weight[i]
                 expert_bias = self.bias[i]
-                print("conv1 input")
-                print(inp_slice.shape)
+                #print("conv1 input")
+                #print(inp_slice.shape)
                 output = F.conv1d(inp_slice, expert_weight, expert_bias, 1, self.padding, self.dilation, 1)
                 idx += fwd_expert_count[i]
                 outputs.append(output)
@@ -165,12 +165,12 @@ def _fmoe_general_global_forward(inp, gate, expert_fn, num_expert, world_size):
         local_expert_count, global_expert_count, fwd_batch_size, world_size
     )
     Te = time.perf_counter()
-    print('MOEScatter.apply cost %s ms' % ((Te - Ts)*1000))
+    #print('MOEScatter.apply cost %s ms' % ((Te - Ts)*1000))
 
     Ts = time.perf_counter()
     x = expert_fn(x, fwd_expert_count)
     Te = time.perf_counter()
-    print('expert_fn cost %s ms' % ((Te - Ts)*1000))
+    #print('expert_fn cost %s ms' % ((Te - Ts)*1000))
 
     out_batch_size = inp.shape[0]
     if len(gate.shape) == 2:
@@ -183,7 +183,7 @@ def _fmoe_general_global_forward(inp, gate, expert_fn, num_expert, world_size):
         out_batch_size, world_size
     )
     Te = time.perf_counter()
-    print('MOEGather.apply cost %s ms' % ((Te - Ts)*1000))
+    #print('MOEGather.apply cost %s ms' % ((Te - Ts)*1000))
     return x
 
 
