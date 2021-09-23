@@ -13,11 +13,12 @@ class _LinearExpert(nn.Module):
     within one worker.
     """
 
-    def __init__(self, num_expert, d_model, d_hidden, activation, rank=0):
+    def __init__(self, num_expert, d_model, d_hidden, activation, rank=0, dropout=0.1):
         super().__init__()
         self.htoh4 = FMoELinear(num_expert, d_model, d_hidden, bias=True, rank=rank)
         self.h4toh = FMoELinear(num_expert, d_hidden, d_model, bias=True, rank=rank)
         self.activation = activation
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, inp, fwd_expert_count):
         r"""
@@ -26,7 +27,9 @@ class _LinearExpert(nn.Module):
         """
         x = self.htoh4(inp, fwd_expert_count)
         x = self.activation(x)
+        x = self.dropout(x)
         x = self.h4toh(x, fwd_expert_count)
+        x = self.dropout(x)
         return x
 
 
@@ -36,7 +39,7 @@ class _ConvExpert(nn.Module):
     within one worker.
     """
 
-    def __init__(self, num_expert, d_model, d_hidden, kernel_size, dilation, activation, rank=0):
+    def __init__(self, num_expert, d_model, d_hidden, kernel_size, dilation, activation, rank=0, dropout=0.1):
         super().__init__()
         self.htoh4 = FMoEConv(num_expert, d_model, d_hidden, bias=True, kernel_size=kernel_size, dilation=dilation, rank=rank)
         self.h4toh = FMoEConv(num_expert, d_hidden, d_model, bias=True, kernel_size=kernel_size, dilation=dilation, rank=rank)
@@ -44,6 +47,7 @@ class _ConvExpert(nn.Module):
         self.num_expert = num_expert
         self.d_model = d_model
         self.d_hidden = d_hidden
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, inp, fwd_expert_count):
         r"""
@@ -52,7 +56,9 @@ class _ConvExpert(nn.Module):
         """
         x = self.htoh4(inp, fwd_expert_count)
         x = self.activation(x)
+        x = self.dropout(x)
         x = self.h4toh(x, fwd_expert_count)
+        x = self.dropout(x)
         return x
 
 
@@ -79,7 +85,8 @@ class FMoETransformerMLP(FMoE):
         mask_dict=None,
         expert=_LinearExpert,
         kernel_size=1,
-        dilation=1
+        dilation=1,
+        dropout=0.1
     ):
         super().__init__(
             num_expert=num_expert,
@@ -95,10 +102,10 @@ class FMoETransformerMLP(FMoE):
 
         if expert == _LinearExpert:
             self.experts = expert(
-                num_expert, d_model, d_hidden, activation, rank=self.mp_rank)
+                num_expert, d_model, d_hidden, activation, rank=self.mp_rank, dropout=dropout)
         elif expert == _ConvExpert:
                 self.experts = expert(
-                num_expert, d_model, d_hidden, kernel_size, dilation, activation, rank=self.mp_rank)
+                num_expert, d_model, d_hidden, kernel_size, dilation, activation, rank=self.mp_rank, dropout=dropout)
         self.mark_parallel_comm(expert_dp_comm)
 
     def forward(self, inp: torch.Tensor, gating_features=None):
