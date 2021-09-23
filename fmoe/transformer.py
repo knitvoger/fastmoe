@@ -59,6 +59,7 @@ class _ConvExpert(nn.Module):
         x = self.dropout(x)
         x = self.h4toh(x, fwd_expert_count)
         x = self.dropout(x)
+        print('dropout!!!!!!!!!!!!!!!1')
         return x
 
 
